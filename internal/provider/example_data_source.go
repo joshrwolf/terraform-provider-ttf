@@ -5,8 +5,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -15,7 +13,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
-var _ datasource.DataSource = &ExampleDataSource{}
+var (
+	_ datasource.DataSource              = &ExampleDataSource{}
+	_ datasource.DataSourceWithConfigure = &ExampleDataSource{}
+)
 
 func NewExampleDataSource() datasource.DataSource {
 	return &ExampleDataSource{}
@@ -23,7 +24,7 @@ func NewExampleDataSource() datasource.DataSource {
 
 // ExampleDataSource defines the data source implementation.
 type ExampleDataSource struct {
-	client *http.Client
+	store *ProviderStore
 }
 
 // ExampleDataSourceModel describes the data source data model.
@@ -60,18 +61,13 @@ func (d *ExampleDataSource) Configure(ctx context.Context, req datasource.Config
 		return
 	}
 
-	client, ok := req.ProviderData.(*http.Client)
-
+	store, ok := req.ProviderData.(*ProviderStore)
 	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
+		resp.Diagnostics.AddError("invalid provider data", "...")
 		return
 	}
 
-	d.client = client
+	d.store = store
 }
 
 func (d *ExampleDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

@@ -1,64 +1,56 @@
-# Terraform Provider Scaffolding (Terraform Plugin Framework)
+# Terraform Provider TTF (Terraform Test Framework)
 
-_This template repository is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). The template repository built on the [Terraform Plugin SDK](https://github.com/hashicorp/terraform-plugin-sdk) can be found at [terraform-provider-scaffolding](https://github.com/hashicorp/terraform-provider-scaffolding). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
+🚨 **This is a work in progress** 🚨
 
-This repository is a *template* for a [Terraform](https://www.terraform.io) provider. It is intended as a starting point for creating Terraform providers, containing:
+A terraform provider for authoring and exucting tests using terraform primitives.
 
-- A resource and a data source (`internal/provider/`),
-- Examples (`examples/`) and generated documentation (`docs/`),
-- Miscellaneous meta files.
+## Usage
 
-These files contain boilerplate code that you will need to edit to create your own Terraform provider. Tutorials for creating Terraform providers can be found on the [HashiCorp Developer](https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework) platform. _Terraform Plugin Framework specific guides are titled accordingly._
+This provides several resources for authoring and executing tests:
 
-Please see the [GitHub template repository documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) for how to create a new repository from this template on GitHub.
+- `ttf_environment`: Define ephemeral environments to execute tests against
+- `ttf_feature`: Author features to test
+- `ttf_harness_*`: Define reusable test harnesses
 
-Once you've written your provider, you'll want to [publish it on the Terraform Registry](https://developer.hashicorp.com/terraform/registry/providers/publishing) so that others can use it.
 
-## Requirements
+```hcl
+# Define features to test against environments
+resource "ttf_feature" "footure" {
+  name        = "footure"
+  description = "My great footure"
 
-- [Terraform](https://developer.hashicorp.com/terraform/downloads) >= 1.0
-- [Go](https://golang.org/doc/install) >= 1.19
+  setup {
+    cmd = "echo 'setup'" # do some feature specific setup
+  }
 
-## Building The Provider
+  teardown {
+    cmd = "echo 'teardown'" # some feature specific teardown
+  }
 
-1. Clone the repository
-1. Enter the repository directory
-1. Build the provider using the Go `install` command:
+  assert {
+    cmd = "echo 'first assertion'" # run assertions that pass or fail
+  }
 
-```shell
-go install
-```
+  assert {
+    cmd = "kubectl get po -A" # assertions are environment configuration independent
+  }
+}
 
-## Adding Dependencies
+# Define reusable environment test harnesses
+resource "ttf_harness_k3s" "simple" {}
+resource "ttf_harness_teardown" "simple" { harness = ttf_harness_k3s.simple.id }
 
-This provider uses [Go modules](https://github.com/golang/go/wiki/Modules).
-Please see the Go documentation for the most up to date information about using Go modules.
+# Define testing environments
+resource "ttf_environment" "foo" {
+  harness = ttf_harness_k3s.simple.id
 
-To add a new dependency `github.com/author/dependency` to your Terraform provider:
+  test {
+    features = [ttf_feature.footure.id]
+  }
+}
 
-```shell
-go get github.com/author/dependency
-go mod tidy
-```
-
-Then commit the changes to `go.mod` and `go.sum`.
-
-## Using the provider
-
-Fill this in for each provider
-
-## Developing the Provider
-
-If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
-
-To compile the provider, run `go install`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
-
-To generate or update documentation, run `go generate`.
-
-In order to run the full suite of Acceptance tests, run `make testacc`.
-
-*Note:* Acceptance tests create real resources, and often cost money to run.
-
-```shell
-make testacc
+# Retrieve test results as machine readable test reports
+output "foo_report" {
+  values = ttf_environment.foo.report
+}
 ```
